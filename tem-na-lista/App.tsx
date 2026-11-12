@@ -1,51 +1,64 @@
-import { useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Button, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import {
   SafeAreaProvider,
   SafeAreaView,
 } from "react-native-safe-area-context";
-import ResultadoCard, { StatusLeitura } from "./components/ResultadoCard";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import ResultadoCard from "./components/ResultadoCard";
 import ListaProdutos from "./components/ListaProdutos";
+import TelaPermissao from "./components/TelaPermissao";
 import { PRODUTOS } from "./dados/produtos";
 
 export default function App() {
-  // TEMPORÁRIO: só para testar o layout (some nas próximas tarefas)
-  const [status, setStatus] = useState<StatusLeitura>("aguardando");
+  const [permissao, pedirPermissao] = useCameraPermissions();
+
+  let conteudo;
+
+  if (!permissao) {
+    // ainda consultando o sistema
+    conteudo = (
+      <View style={styles.centro}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  } else if (!permissao.granted) {
+    // sem permissão
+    conteudo = (
+      <TelaPermissao
+        podePedir={permissao.canAskAgain}
+        onPermitir={pedirPermissao}
+        onAbrirConfiguracoes={() => Linking.openSettings()}
+      />
+    );
+  } else {
+    // com permissão
+    conteudo = (
+      <>
+        <View style={styles.areaCamera}>
+          <CameraView style={StyleSheet.absoluteFill} facing="back" />
+          <View style={styles.moldura} />
+        </View>
+
+        <ResultadoCard status="aguardando" />
+
+        <ListaProdutos produtos={PRODUTOS} />
+      </>
+    );
+  }
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />
-
         <Text style={styles.cabecalho}>Tem na lista?</Text>
-
-        <View style={styles.areaCamera}>
-          <View style={styles.moldura} />
-        </View>
-
-        <ResultadoCard
-          status={status}
-          produto={PRODUTOS[0]}
-          codigoLido="7899876000114"
-        />
-
-        {/* TEMPORÁRIO: botões de teste */}
-        <View style={styles.botoesTeste}>
-          <Button title="Aguardando" onPress={() => setStatus("aguardando")} />
-          <Button title="Encontrado" onPress={() => setStatus("encontrado")} />
-          <Button
-            title="Não achou"
-            onPress={() => setStatus("nao_encontrado")}
-          />
-        </View>
-
-        <ListaProdutos
-          produtos={PRODUTOS}
-          codigoDestacado={
-            status === "encontrado" ? PRODUTOS[0].codigo : undefined
-          }
-        />
+        {conteudo}
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -59,10 +72,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 12,
   },
+  centro: { flex: 1, justifyContent: "center", alignItems: "center" },
   areaCamera: {
     height: 220,
     backgroundColor: "#222",
     borderRadius: 12,
+    overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -72,10 +87,5 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "#fff",
     borderRadius: 8,
-  },
-  botoesTeste: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 12,
   },
 });
